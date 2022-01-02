@@ -1,0 +1,71 @@
+//主线程
+Handler mHandler = new Handler(thread.handler2.getLooper()) {          //主线程中handler
+    @Override
+    public void handleMessage(@NonNull Message msg) {
+        if (msg.what == 0X124) {
+            mText.setText("收到新消息");
+            String name = msg.getData().getString("name");
+            Log.d(TAG, "发送Thread: " + name);
+            Log.d(TAG, "接收Thread: " + Thread.currentThread().getName());
+            Toast.makeText(getApplicationContext(), "收到新信息", Toast.LENGTH_SHORT).show();
+        }
+    }
+};
+
+
+//子线程
+public class CalThread extends Thread {
+    private Handler handler2;
+
+    @Override
+    public void run() {
+        super.run();
+        Looper.prepare();
+
+        handler2 = new Handler(Looper.myLooper()) {  //关联自身Looper
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                if (msg.what == 0X124) {
+                    mText.setText("收到新消息");
+                    String name = msg.getData().getString("name");
+                    Log.d(TAG, "发送Thread: " + name);
+                    Log.d(TAG, "接收Thread: " + Thread.currentThread().getName());
+                    Toast.makeText(getApplicationContext(), "收到新信息", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+        Looper.loop();
+    }
+}
+
+
+传递方法同情况一
+方法一：调用主线程中的mHandler
+如下代码：
+Message message = new Message();
+message.what = 0X124;
+Bundle bundle = new Bundle();
+bundle.putString("name", Thread.currentThread().getName());
+message.setData(bundle);
+mHandler.sendMessage(message);
+
+打印出日志如下：
+发送Thread：Thread-3
+接收Thread：main
+
+方法二：调用子线程自己的Handler，并将本线程中handler2与主线程中Looper相关联
+如下代码：
+将
+handler2 = new Handler(Looper.myLooper()) {  //关联自身Looper     
+改为
+handler2 = new Handler(Looper.getMainLooper()){ //关联主线程Looper
+
+//然后调用该handler2的sendMessage方法
+handler2.sendMessage(message);
+
+打印出日志如下：
+发送Thread：Thread-2
+接收Thread：main
+
+注意项和情况一中一样
+
