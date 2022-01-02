@@ -1,0 +1,92 @@
+ //第一个子线程
+ new Thread() {             //子线程中handler1
+            @Override
+            public void run() {
+                Looper.prepare();
+                Handler handler1 = new Handler(Looper.myLooper()) {     //关联本线程Looper
+                    @Override
+                    public void handleMessage(@NonNull Message msg) {
+                        if (msg.what == 0X124) {
+                            mText.setText("收到新消息");
+                            String name = msg.getData().getString("name");
+                            Log.d(TAG, "发送Thread: " + name);
+                            Log.d(TAG, "接收Thread: " + Thread.currentThread().getName());
+                            Toast.makeText(getApplicationContext(), "收到新信息", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                };
+                Looper.loop();
+          }
+ }.start();
+ 
+ //第二个子线程  
+ public class CalThread extends Thread {
+        private Handler handler2;
+
+        @Override
+        public void run() {
+            super.run();
+            Looper.prepare();
+            handler2 = new Handler(Looper.myLooper()) {  //关联自身Looper
+                @Override
+                public void handleMessage(@NonNull Message msg) {
+                    if (msg.what == 0X124) {
+                        mText.setText("收到新消息");
+                        String name = msg.getData().getString("name");
+                        Log.d(TAG, "发送Thread: " + name);
+                        Log.d(TAG, "接收Thread: " + Thread.currentThread().getName());
+                        Toast.makeText(getApplicationContext(), "收到新信息", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            };
+
+            Looper.loop();
+        }
+    }
+ 此处实现从子线程1向子线程2中传送消息，有两种方式
+ 方法一：通过调用对方线程中的Handler
+ 相关代码如下：
+  Message message = new Message();
+  message.what = 0X123;
+  Bundle bundle = new Bundle();
+  bundle.putString("name",Thread.currentThread().getName());  //将当前进程名传入bundle
+  message.setData(bundle);
+  thread.handler2.sendMessage(message);   
+  
+  此时打印出日志：
+  发送Thread：Thread-3
+  接收Thread：Thread-2
+  
+  方法二：通过调用本线程中的Handler，并将本线程中Handler与目标线程Looper关联
+  相关代码如下：
+  
+  Handler handler1 = new Handler(Looper.myLooper());  //关联本线程Looper
+  //改为：
+  Handler handler1 = new Handler(thread.handler2.getLooper());  //关联目标子线程Looper
+  
+  //调用本线程中Handler
+  handler1.sendMessage(message);
+  
+  此时打印出日志：
+  发出Thread：Thread-3
+  接收Thread：Thread-2
+  
+  注意：
+  1.如果handler1关联的线程为本身线程，同时又调用了自己的handler1，则会将消息发送到自己线程中
+  此时打印出日志：
+  发送Thread：Thread-3
+  接收Thread：Thread-3
+  
+  2.如果目标线程Handler关联的是其他线程中的Looper，或者主线程中的Looper，则消息会被发送到其他程程或者主线程中
+  比如此时将handler1关联到handler2中Looper，而handler2关联至主线程中Looper
+  此时调用handler1的sendMessage，会打印如下日志：
+  发送Thread：Thread-3
+  接收Thread：main
+  
+  调用handler2的sendMessage，会打印如下日志：
+  发送Thread：Thread-3
+  接收Thread：main
+  
+  
+  
+ 
