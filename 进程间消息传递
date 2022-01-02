@@ -1,0 +1,4 @@
+这里梳理了自己关于Handler如何实现从主线程向子线程、从主线程向主线程、从子线程向子线程、从子线程向主线程的消息传递的理解
+最根本是要将源线程中的Handler与目标线程的Looper关联绑定
+随后就可以通过调用此Handler的sendMessage方法，向目标线程发送message
+通过Looper.getMainLooper()、Looper.myLooper()和 线程名.getLooper()实现
