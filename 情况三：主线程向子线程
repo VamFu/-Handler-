@@ -1,0 +1,73 @@
+//尝试过几种方法，无论是将主线程中handler与目标子线程中Looper进行关联，还是直接调用目标线程中的handler，最终都会报错空指针
+//所以此处想要实现主线程向子线程的消息传递，需要实例化一个HandlerThread类，其中必须要指定此线程名字
+
+//代码实现如下：
+public class MainToSon extends AppCompatActivity {
+
+    private TextView mTv;
+    private Handler mHandler;   //主线程handler
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        mTv = findViewById(R.id.textDate);
+        initViews();
+
+    }
+
+    private void initViews() {
+
+        //实例化一个特殊的实例HandlerThread,必须指定具体名字
+        HandlerThread handlerThread = new HandlerThread("handler thread");
+        handlerThread.start();   //必须开启此线程
+
+        //将mHandler与handlerThread相关联
+        mHandler = new Handler(handlerThread.getLooper()) {
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                Log.d("TAG", "发送线程时: " + msg.getData().getString("name"));
+                Log.d("TAG", "当前线程是： " + Thread.currentThread().getName());
+            }
+        };
+
+        //主线程中handler创建消息
+        Message message = new Message();
+        message.what = 0X123;
+        Bundle bundle = new Bundle();
+        bundle.putString("name", Thread.currentThread().getName());
+        message.setData(bundle);
+        mHandler.sendMessage(message);
+    }
+}
+
+同理，将主线程的mHandler与目标线程的Looper相关联，然后调用mHandler的sendMessage方法发送消息到目标子线程中
+打印出日志如下：
+
+发送Thread是：main
+接收Thread是：handler thread
+
+
+注意：
+当我们要重写此子线程中的run方法时
+//重写handlerThread的run方法
+HandlerThread handlerThread1 = new HandlerThread("handler thread") {
+    @Override
+    public void run() {
+        Looper.prepare();
+        for (int i = 0; i < 3; i++) {
+            Log.d("TAG", i + "");
+        }
+        Looper.loop();
+    }
+};
+handlerThread1.start();
+
+打印出日志如下：
+0
+1
+2
+
+此时只打印了run里面的内容，是因为当一个handler与handlerThread进行绑定时，如果此时Looper为空，handler会一直保持等待状态
+直到这个Looper创建出来，然后才会继续执行代码
+而当我们重写了run()方法，就不会创建Looper对象了，此时绑定的Handler就会一直处于等待状态
